@@ -1,96 +1,101 @@
-import com.ntt.pipeline.Config
-import com.ntt.pipeline.Gates
-import com.ntt.pipeline.Semver
-import com.ntt.pipeline.Registry
-
-def call(Map userCfg = [:]) {
-  def cfg = Config.from(userCfg)
-  def gates = new Gates(this)
-  def semver = new Semver(this)
-  def registry = new Registry(this)
+def call(Map cfg = [:]) {
+  // defaults
+  String appName = cfg.get('appName', 'bank-analytics-api')
+  String apiDir  = cfg.get('apiDir', 'api')
+  String composeFile = cfg.get('dockerComposeFile', 'infra/docker-compose.yaml')
+  Integer coverageMin = (cfg.get('coverageMin', 70) as Integer)
+  Boolean runIntegration = (cfg.get('runIntegration', false) as Boolean)
 
   pipeline {
     agent any
     options {
-      timestamps()
       ansiColor('xterm')
+      timestamps()
       disableConcurrentBuilds()
-      buildDiscarder(logRotator(numToKeepStr: '30'))
+    }
+
+    environment {
+      PYTHONUNBUFFERED = "1"
+      // Ajuste se quiser apontar integração para container/compose depois
+      INTEGRATION_BASE_URL = cfg.get('integrationBaseUrl', 'http://localhost:8001')
     }
 
     stages {
-      stage("Toolchain") {
+      stage('Checkout') {
         steps {
-          script {
-            gates.requireDocker()
-            gates.requirePoetry()
-            gates.requirePython311()
+          checkout scm
+        }
+      }
+
+      stage('Lint / Quality') {
+        steps {
+          dir(apiDir) {
+            sh '''
+              set -e
+              poetry --version
+              poetry install --no-interaction --no-ansi
+              poetry run ruff format --check .
+              poetry run ruff check .
+            '''
           }
         }
       }
 
-      stage("Checkout") {
-        steps { checkout scm }
-      }
-
-      stage("Versioning") {
+      stage('Test') {
         steps {
-          script {
-            cfg.imageTag = semver.versionTagOrSha()
-            echo "Image tag resolved: ${cfg.imageTag}"
+          dir(apiDir) {
+            sh """
+              set -e
+              poetry run pytest -m "not integration" \
+                --cov=bank_api \
+                --cov-report=term-missing \
+                --cov-report=xml:coverage.xml \
+                --cov-fail-under=${coverageMin} \
+                --junitxml=junit.xml
+            """
+          }
+        }
+        post {
+          always {
+            dir(apiDir) {
+              junit allowEmptyResults: true, testResults: 'junit.xml'
+              publishCoverage adapters: [coberturaAdapter('coverage.xml')], sourceFileResolver: sourceFiles('STORE_LAST_BUILD')
+            }
           }
         }
       }
 
-      stage("Build (Docker)") {
+      stage('Build (Docker)') {
         steps {
-          script {
-            registry.buildImage(cfg.imageName, cfg.dockerfile, cfg.imageTag)
-          }
+          sh """
+            set -e
+            docker compose -f ${composeFile} build
+          """
         }
       }
 
-      stage("CI") {
+      stage('Integration (optional)') {
+        when { expression { return runIntegration } }
         steps {
-          script {
-            // lint + tests
-            stageLintQuality(apiDir: cfg.apiDir)
-            stageTest(
-              apiDir: cfg.apiDir,
-              coverageMin: cfg.coverageMin,
-              dockerComposeFile: cfg.dockerComposeFile,
-              apiPort: cfg.apiPort,
-              runIntegration: cfg.runIntegration
-            )
-            // security (placeholder por enquanto)
-            stageSecurity(
-              runSecurity: cfg.runSecurity,
-              imageName: cfg.imageName,
-              imageTag: cfg.imageTag
-            )
+          sh """
+            set -e
+            docker compose -f ${composeFile} up -d
+          """
+          dir(apiDir) {
+            sh '''
+              set -e
+              INTEGRATION_BASE_URL=${INTEGRATION_BASE_URL} poetry run pytest -m integration --junitxml=junit-integration.xml
+            '''
           }
         }
-      }
-
-      stage("CD") {
-        when { branch "main" }
-        steps {
-          script {
-            stageGitOpsDeploy(
-              runGitOps: cfg.runGitOps,
-              gitopsRepoUrl: cfg.gitopsRepoUrl,
-              gitopsBranch: cfg.gitopsBranch,
-              gitopsValuesPath: cfg.gitopsValuesPath,
-              imageTag: cfg.imageTag
-            )
+        post {
+          always {
+            dir(apiDir) {
+              junit allowEmptyResults: true, testResults: 'junit-integration.xml'
+            }
+            sh "docker compose -f ${composeFile} down -v || true"
           }
         }
-      }
-    }
-
-    post {
-      always {
-        echo "Pipeline finished."
       }
     }
   }
