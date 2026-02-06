@@ -98,6 +98,7 @@ def call(Map cfg = [:]) {
         steps {
           sh """
             set -euo pipefail
+            rm -rf ${apiDir}/.ruff_cache || true
             docker compose -f ${composeFile} build
           """
         }
