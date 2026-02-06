@@ -36,12 +36,12 @@ def call(Map cfg = [:]) {
             sh """
               set -euo pipefail
               echo "WORKSPACE=$WORKSPACE"
-              echo "apiDir=${apiDir}"
               ls -la "$WORKSPACE/${apiDir}"
               test -f "$WORKSPACE/${apiDir}/pyproject.toml"
               
               docker run --rm \
-                -v "$WORKSPACE/${apiDir}":/work -w /work \
+                --volumes-from ntt-jenkins \
+                -w "$WORKSPACE/${apiDir}" \
                 python:3.11-slim bash -lc '
                   set -euo pipefail
                   python -V
@@ -66,7 +66,8 @@ def call(Map cfg = [:]) {
               test -f "$WORKSPACE/${apiDir}/pyproject.toml"
 
               docker run --rm \
-                -v "$WORKSPACE/${apiDir}":/work -w /work \
+                --volumes-from ntt-jenkins \
+                -w "$WORKSPACE/${apiDir}" \
                 python:3.11-slim bash -lc '
                   set -euo pipefail
                   python -V
