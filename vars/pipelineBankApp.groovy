@@ -1,12 +1,12 @@
 def call(Map cfg = [:]) {
   // defaults
-  String appName        = cfg.get('appName', 'bank-analytics-api')
-  String apiDir         = cfg.get('apiDir', 'api')
-  String composeFile    = cfg.get('dockerComposeFile', 'infra/docker-compose.yaml')
-  Integer coverageMin   = (cfg.get('coverageMin', 70) as Integer)
+  String appName         = cfg.get('appName', 'bank-analytics-api')
+  String apiDir          = cfg.get('apiDir', 'api')
+  String composeFile     = cfg.get('dockerComposeFile', 'infra/docker-compose.yaml')
+  Integer coverageMin    = (cfg.get('coverageMin', 70) as Integer)
   Boolean runIntegration = (cfg.get('runIntegration', false) as Boolean)
 
-  // opcional (se quiser customizar)
+  // opcional
   String integrationBaseUrl = cfg.get('integrationBaseUrl', 'http://localhost:8001')
 
   pipeline {
@@ -38,10 +38,12 @@ def call(Map cfg = [:]) {
               echo "WORKSPACE=$WORKSPACE"
               ls -la "$WORKSPACE/${apiDir}"
               test -f "$WORKSPACE/${apiDir}/pyproject.toml"
-              
+
               docker run --rm \
-                --volumes-from ntt-jenkins \
-                -w "$WORKSPACE/${apiDir}" \
+                --user \$(id -u):\$(id -g) \
+                -e RUFF_CACHE_DIR=/tmp/ruff_cache \
+                -e POETRY_CACHE_DIR=/tmp/pypoetry_cache \
+                -v "$WORKSPACE/${apiDir}":/work -w /work \
                 python:3.11-slim bash -lc '
                   set -euo pipefail
                   python -V
@@ -53,7 +55,7 @@ def call(Map cfg = [:]) {
                   poetry run ruff format --check .
                   poetry run ruff check .
                 '
-            """ 
+            """
           }
         }
       }
@@ -66,8 +68,10 @@ def call(Map cfg = [:]) {
               test -f "$WORKSPACE/${apiDir}/pyproject.toml"
 
               docker run --rm \
-                --volumes-from ntt-jenkins \
-                -w "$WORKSPACE/${apiDir}" \
+                --user \$(id -u):\$(id -g) \
+                -e RUFF_CACHE_DIR=/tmp/ruff_cache \
+                -e POETRY_CACHE_DIR=/tmp/pypoetry_cache \
+                -v "$WORKSPACE/${apiDir}":/work -w /work \
                 python:3.11-slim bash -lc '
                   set -euo pipefail
                   python -V
@@ -83,8 +87,8 @@ def call(Map cfg = [:]) {
                     --junitxml=junit.xml
                 '
             """
+          }
         }
-      }
         post {
           always {
             dir(apiDir) {
@@ -98,7 +102,10 @@ def call(Map cfg = [:]) {
         steps {
           sh """
             set -euo pipefail
-            rm -rf ${apiDir}/.ruff_cache || true
+
+            # Se sobrou .ruff_cache de execuções antigas (root-owned), NÃO tenta apagar como jenkins.
+            # O correto é não gerar mais. Mas se quiser limpar, faça 1x via docker exec -u root.
+
             docker compose -f ${composeFile} build
           """
         }
@@ -112,16 +119,17 @@ def call(Map cfg = [:]) {
             docker compose -f ${composeFile} up -d
           """
 
-          // roda integration tests no container python (sem depender de poetry no agent)
           dir(apiDir) {
             script {
               sh """
                 set -euo pipefail
 
                 docker run --rm \
-                  --network \$(docker compose -f ${composeFile} ps -q | head -n 1 >/dev/null 2>&1 && docker network ls --format '{{.Name}}' | grep -E 'infra|bank|analytics|default' | head -n 1 || echo bridge) \
+                  --user \$(id -u):\$(id -g) \
                   -e INTEGRATION_BASE_URL="${integrationBaseUrl}" \
-                  -v "\$PWD":/work -w /work \
+                  -e RUFF_CACHE_DIR=/tmp/ruff_cache \
+                  -e POETRY_CACHE_DIR=/tmp/pypoetry_cache \
+                  -v "$WORKSPACE/${apiDir}":/work -w /work \
                   python:3.11-slim bash -lc '
                     set -euo pipefail
                     python -V
