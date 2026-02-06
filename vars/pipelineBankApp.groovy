@@ -33,7 +33,7 @@ def call(Map cfg = [:]) {
             sh '''
               set -e
               docker run --rm \
-                -v "$PWD":/work -w /work \
+                -v "\$WORKSPACE/${apiDir}":/work -w /work \
                 python:3.11-slim bash -lc "
                   python -V
                   apt-get update && apt-get install -y --no-install-recommends curl git && rm -rf /var/lib/apt/lists/*
@@ -56,7 +56,7 @@ def call(Map cfg = [:]) {
             sh """
               set -e
               docker run --rm \
-                -v "\$PWD":/work -w /work \
+                -v "\$WORKSPACE/${apiDir}":/work -w /work \
                 python:3.11-slim bash -lc "
                   python -V
                   apt-get update && apt-get install -y --no-install-recommends curl git && rm -rf /var/lib/apt/lists/*
