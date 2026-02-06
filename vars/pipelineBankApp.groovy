@@ -32,26 +32,44 @@ def call(Map cfg = [:]) {
           dir(apiDir) {
             sh '''
               set -e
-              poetry --version
-              poetry install --no-interaction --no-ansi
-              poetry run ruff format --check .
-              poetry run ruff check .
+              docker run --rm \
+                -v "$PWD":/work -w /work \
+                python:3.11-slim bash -lc "
+                  python -V
+                  apt-get update && apt-get install -y --no-install-recommends curl git && rm -rf /var/lib/apt/lists/*
+                  curl -sSL https://install.python-poetry.org | python3 -
+                  export PATH=\\"/root/.local/bin:$PATH\\"
+                  poetry --version
+                  poetry install --no-interaction --no-ansi
+                  poetry run ruff format --check .
+                  poetry run ruff check .
+                "
             '''
           }
         }
       }
+
 
       stage('Test') {
         steps {
           dir(apiDir) {
             sh """
               set -e
-              poetry run pytest -m "not integration" \
-                --cov=bank_api \
-                --cov-report=term-missing \
-                --cov-report=xml:coverage.xml \
-                --cov-fail-under=${coverageMin} \
-                --junitxml=junit.xml
+              docker run --rm \
+                -v "\$PWD":/work -w /work \
+                python:3.11-slim bash -lc "
+                  python -V
+                  apt-get update && apt-get install -y --no-install-recommends curl git && rm -rf /var/lib/apt/lists/*
+                  curl -sSL https://install.python-poetry.org | python3 -
+                  export PATH=\\\"/root/.local/bin:\$PATH\\\"
+                  poetry install --no-interaction --no-ansi
+                  poetry run pytest -m 'not integration' \
+                    --cov=bank_api \
+                    --cov-report=term-missing \
+                    --cov-report=xml:coverage.xml \
+                    --cov-fail-under=${coverageMin} \
+                    --junitxml=junit.xml
+                "
             """
           }
         }
@@ -59,11 +77,11 @@ def call(Map cfg = [:]) {
           always {
             dir(apiDir) {
               junit allowEmptyResults: true, testResults: 'junit.xml'
-              publishCoverage adapters: [coberturaAdapter('coverage.xml')], sourceFileResolver: sourceFiles('STORE_LAST_BUILD')
             }
           }
         }
       }
+
 
       stage('Build (Docker)') {
         steps {
