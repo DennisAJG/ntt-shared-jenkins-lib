@@ -32,64 +32,58 @@ def call(Map cfg = [:]) {
 
       stage('Lint / Quality') {
         steps {
-          dir(apiDir) {
-            script {
-              sh """
-                set -euo pipefail
-
-                echo "PWD inside dir(): \$(pwd)"
-                ls -la
-                test -f pyproject.toml
-
-                docker run --rm \
-                  -v "\$PWD":/work -w /work \
-                  python:3.11-slim bash -lc '
-                    set -euo pipefail
-                    python -V
-                    apt-get update && apt-get install -y --no-install-recommends curl git && rm -rf /var/lib/apt/lists/*
-                    curl -sSL https://install.python-poetry.org | python3 -
-                    export PATH="/root/.local/bin:\$PATH"
-                    poetry --version
-                    poetry install --no-interaction --no-ansi
-                    poetry run ruff format --check .
-                    poetry run ruff check .
-                  '
-              """
-            }
+          script {
+            sh """
+              set -euo pipefail
+              echo "WORKSPACE=$WORKSPACE"
+              echo "apiDir=${apiDir}"
+              ls -la "$WORKSPACE/${apiDir}"
+              test -f "$WORKSPACE/${apiDir}/pyproject.toml"
+              
+              docker run --rm \
+                -v "$WORKSPACE/${apiDir}":/work -w /work \
+                python:3.11-slim bash -lc '
+                  set -euo pipefail
+                  python -V
+                  apt-get update && apt-get install -y --no-install-recommends curl git && rm -rf /var/lib/apt/lists/*
+                  curl -sSL https://install.python-poetry.org | python3 -
+                  export PATH="/root/.local/bin:\$PATH"
+                  poetry --version
+                  poetry install --no-interaction --no-ansi
+                  poetry run ruff format --check .
+                  poetry run ruff check .
+                '
+            """ 
           }
         }
       }
 
       stage('Test') {
         steps {
-          dir(apiDir) {
-            script {
-              sh """
-                set -euo pipefail
+          script {
+            sh """
+              set -euo pipefail
+              test -f "$WORKSPACE/${apiDir}/pyproject.toml"
 
-                echo "PWD inside dir(): \$(pwd)"
-                test -f pyproject.toml
-
-                docker run --rm \
-                  -v "\$PWD":/work -w /work \
-                  python:3.11-slim bash -lc '
-                    set -euo pipefail
-                    python -V
-                    apt-get update && apt-get install -y --no-install-recommends curl git && rm -rf /var/lib/apt/lists/*
-                    curl -sSL https://install.python-poetry.org | python3 -
-                    export PATH="/root/.local/bin:\$PATH"
-                    poetry install --no-interaction --no-ansi
-                    poetry run pytest -m "not integration" \
-                      --cov=bank_api \
-                      --cov-report=term-missing \
-                      --cov-report=xml:coverage.xml \
-                      --cov-fail-under=${coverageMin} \
-                      --junitxml=junit.xml
-                  '
-              """
-            }
-          }
+              docker run --rm \
+                -v "$WORKSPACE/${apiDir}":/work -w /work \
+                python:3.11-slim bash -lc '
+                  set -euo pipefail
+                  python -V
+                  apt-get update && apt-get install -y --no-install-recommends curl git && rm -rf /var/lib/apt/lists/*
+                  curl -sSL https://install.python-poetry.org | python3 -
+                  export PATH="/root/.local/bin:\$PATH"
+                  poetry install --no-interaction --no-ansi
+                  poetry run pytest -m "not integration" \
+                    --cov=bank_api \
+                    --cov-report=term-missing \
+                    --cov-report=xml:coverage.xml \
+                    --cov-fail-under=${coverageMin} \
+                    --junitxml=junit.xml
+                '
+            """
         }
+      }
         post {
           always {
             dir(apiDir) {
