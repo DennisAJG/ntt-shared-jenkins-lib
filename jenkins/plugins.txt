@@ -1,0 +1,12 @@
+workflow-aggregator
+git
+configuration-as-code
+credentials
+credentials-binding
+github
+ws-cleanup
+ansicolor
+timestamper
+warnings-ng
+junit
+pipeline-stage-view

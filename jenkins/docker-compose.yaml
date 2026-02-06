@@ -1,0 +1,29 @@
+services:
+  jenkins:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ntt-jenkins
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    environment:
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+      - JENKINS_ADMIN_USER=admin
+      - JENKINS_ADMIN_PASSWORD=admin
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./init.groovy.d:/var/jenkins_home/init.groovy.d
+    group_add:
+      - "${DOCKER_GID}"
+    networks:
+      - ci_net
+
+volumes:
+  jenkins_home:
+
+networks:
+  ci_net:
+    driver: bridge

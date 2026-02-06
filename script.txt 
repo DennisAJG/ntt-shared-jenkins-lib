@@ -1,0 +1,48 @@
+1 - Falar sobre seu nome, idade e nacionalidade 
+2 - Formação academica como:
+     - Curso técnico em Desenvolvimento de Sistemas 
+     - Graduação em Analise e Desenvolvimento de Sistemas na UNICSUL (São Paulo)
+     - Pós-Graduação em DevOps & Cloud Computing na Impacta (São Paulo)
+3 - Carreira Profissional:
+    4 anos e 10 messes na CAST GROUP 
+      - 1 ano como suporte a N1 - estagiario 
+           Atividades:
+                1 - Suporte a S.O Linux atuando com shell script básicos 
+                     - script para instalação de softwares proprietários
+                     - script para validação de usuários e ferramentas administrativas
+      
+      - 2 ano como Líder de suporte N1 - Efetivado 
+                1 - Suporte a S.O Linux atuando com shell script básicos 
+                     - script para instalação de softwares proprietários
+                     - script para validação de usuários e ferramentas administrativas
+      
+      - 3 ano como Analista de Suporte N2 - Efetivado 
+                1 - Scripts para configuração de IPTABLES IPV4 
+                      - script para gerenciamento de pacotes e permissões a diretorios e arquivos 
+                      - configurações de Firewall 
+
+      - 4 ano atuando como Sys Admin Linux Jr 
+                1 - atuando com Mongo DB 
+                2 - Zabbix
+                3 - Elastasearch 
+                4 - Terraform (provisionamento de recursos como EC2, Lambda)
+                5 - Scripts Python para funções lambdas em start e stop de EC2s 
+                6 - Kubernetes raiz (configuração de multiplos nodes masters e ETCD )
+                7 - Atuando de forma básica com o Gitlab-ci 
+
+    2 anos e 8 messes na Aquarela Advanced Analytics
+            1 - Atuando com CI Jenkins trazendo para a empresa o usu de shered librarys com estagios de pipeline como: 
+                            - Lint ;
+                            - Unit test 
+                            - testes de integração
+                            - Gitleaks (secrets)
+                            - Semgrep (SAST)
+                            - Syft (SBOM)
+                            - repo manifests (Helm)
+                            - Argo CD sync 
+           2 - atuando com os desenvovedores e com os cientistes de dados em códificação para métricas como:
+                            - /health -> Liveness probe
+                            - /ready ->  Readness probe 
+                            - /metrcis -> metricas de monitoramento que era exportados pro prometheus 
+               atuação em estrutura de ETL usando o apasheairflow 
+             
