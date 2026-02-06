@@ -40,20 +40,18 @@ def call(Map cfg = [:]) {
               test -f "$WORKSPACE/${apiDir}/pyproject.toml"
 
               docker run --rm \
-                --user \$(id -u):\$(id -g) \
+                --user $(id -u):$(id -g) \
                 -e RUFF_CACHE_DIR=/tmp/ruff_cache \
                 -e POETRY_CACHE_DIR=/tmp/pypoetry_cache \
                 -v "$WORKSPACE/${apiDir}":/work -w /work \
-                python:3.11-slim bash -lc '
+                ghcr.io/python-poetry/poetry:2.3.2-python3.11 bash -lc '
                   set -euo pipefail
                   python -V
-                  apt-get update && apt-get install -y --no-install-recommends curl git && rm -rf /var/lib/apt/lists/*
-                  curl -sSL https://install.python-poetry.org | python3 -
-                  export PATH="/root/.local/bin:\$PATH"
                   poetry --version
                   poetry install --no-interaction --no-ansi
                   poetry run ruff format --check .
                   poetry run ruff check .
+                  'try run ruff check .
                 '
             """
           }
@@ -68,22 +66,20 @@ def call(Map cfg = [:]) {
               test -f "$WORKSPACE/${apiDir}/pyproject.toml"
 
               docker run --rm \
-                --user \$(id -u):\$(id -g) \
+                --user $(id -u):$(id -g) \
                 -e RUFF_CACHE_DIR=/tmp/ruff_cache \
                 -e POETRY_CACHE_DIR=/tmp/pypoetry_cache \
                 -v "$WORKSPACE/${apiDir}":/work -w /work \
-                python:3.11-slim bash -lc '
+                ghcr.io/python-poetry/poetry:2.3.2-python3.11 bash -lc '
                   set -euo pipefail
                   python -V
-                  apt-get update && apt-get install -y --no-install-recommends curl git && rm -rf /var/lib/apt/lists/*
-                  curl -sSL https://install.python-poetry.org | python3 -
-                  export PATH="/root/.local/bin:\$PATH"
+                  poetry --version
                   poetry install --no-interaction --no-ansi
                   poetry run pytest -m "not integration" \
                     --cov=bank_api \
                     --cov-report=term-missing \
                     --cov-report=xml:coverage.xml \
-                    --cov-fail-under=${coverageMin} \
+                    --cov-fail-under='"${coverageMin}"' \
                     --junitxml=junit.xml
                 '
             """
@@ -130,7 +126,7 @@ def call(Map cfg = [:]) {
                   -e RUFF_CACHE_DIR=/tmp/ruff_cache \
                   -e POETRY_CACHE_DIR=/tmp/pypoetry_cache \
                   -v "$WORKSPACE/${apiDir}":/work -w /work \
-                  python:3.11-slim bash -lc '
+                  bank-ci:py311 bash -lc '
                     set -euo pipefail
                     python -V
                     apt-get update && apt-get install -y --no-install-recommends curl git && rm -rf /var/lib/apt/lists/*
